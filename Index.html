@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<title>Grid Chart</title>
+<style>
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+body{
+  padding:10px;
+  font-family:'DM Mono', monospace;
+  color:#111;
+  background-color: #ffffff;
+  background-image:radial-gradient(#e5e5e5 1px, transparent 1px);
+  background-size:20px 20px;
+}
+
+/* ── PIXEL SEARCH BAR ── */
+#search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+
+#search-input {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #111;
+  background: #fff;
+  border: 3px solid #111;
+  box-shadow: 4px 4px 0 #000;
+  padding: 6px 36px 6px 10px;
+  width: 100%; /* 🔥 changed from 240px */
+  outline: none;
+  image-rendering: pixelated;
+  caret-color: #111;
+  transition: box-shadow 0.1s;
+}
+
+#search-input::placeholder {
+  color: #aaa;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+#search-input:focus {
+  box-shadow: 6px 6px 0 #000;
+  border-color: #000;
+}
+
+/* pixel "SEARCH" label badge */
+#search-wrap::before {
+  content: "SEARCH";
+  position: absolute;
+  top: -9px;
+  left: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #fff;
+  background: #111;
+  padding: 1px 5px;
+  z-index: 1;
+}
+
+/* magnifier icon inside input */
+#search-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ── SEARCH RESULTS DROPDOWN ── */
+#search-results {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 320px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 3px solid #111;
+  box-shadow: 5px 5px 0 #000;
+  z-index: 9999;
+}
+
+#search-results .sr-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #ddd;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.08s;
+}
+#search-results .sr-item:last-child { border-bottom: none; }
+#search-results .sr-item:hover { background: #f0f0f0; }
+
+#search-results .sr-id {
+  font-family: "MS Gothic", monospace;
+  font-size: 15px;
+  color: #111;
+  flex-shrink: 0;
+}
+#search-results .sr-page {
+  font-size: 10px;
+  font-weight: 400;
+  color: #888;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-left: auto;
+  flex-shrink: 0;
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  padding: 1px 5px;
+}
+#search-results .sr-empty {
+  padding: 10px;
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+/* ── top bar wrapper ── */
+#top-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 10px 0 18px;
+}
+
+/* ── chapter filter bar ── */
+#filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 2px solid #222;
+  box-shadow: 3px 3px 0 #000;
+  background: #fff;
+  width: fit-content;
+}
+
+#filter-btns {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+#filter-bar > .filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #ddd;
+}
+
+.chap-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border: 2px solid #222;
+  background: #fff;
+  color: #222;
+  box-shadow: 3px 3px 0 #000;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  letter-spacing: 0.02em;
+}
+.chap-btn:hover { background: #f0f0f0; }
+.chap-btn.active {
+  background: #222;
+  color: #fff;
+  box-shadow: 3px 3px 0 #555;
+}
+
+/* ── loading indicator ── */
+#loader {
+  display: none;
+  font-size: 13px;
+  color: #777;
+  padding: 10px 0;
+}
+
+/* ── chart row ── */
+.chart {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+/* ── grid ── */
+.table-wrap {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.grid {
+  display: inline-grid;
+  border: 1.5px solid #222;
+  background: #222;
+  gap: 1px;
+  width: max-content;
+}
+
+.cell {
+  font-family: 'DM Mono', monospace;
+  background: green;
+  font-weight: bold;
+  color: white;
+  padding: 4px 6px;
+  font-size: 16px;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 4px 4px 0 #000;
+}
+
+/* ── explain ── */
+.explain {
+  font-size: 16px;
+  font-family: 'DM Mono', monospace;
+  line-height: 1.6;
+  width: 100%;
+}
+
+.explain p {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0 0 6px 0;
+}
+.explain p:last-child { margin-bottom: 0; }
+
+.explain svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: black;
+}
+
+.explain-text {
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+/* ── inline formats ── */
+.fmt-bold      { font-weight: 700; }
+.fmt-underline { text-decoration: underline; }
+.fmt-italic    { font-style: italic; }
+
+.fmt-highlight {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  word-break: break-word;
+  font-family: "MS Gothic", monospace;
+  font-size: 14px;
+  color: black;
+  font-weight: bold;
+  padding: 2px 4px;
+  background: white;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  cursor: pointer;
+  image-rendering: pixelated;
+  text-decoration: none;
+}
+
+.fmt-mark {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  word-break: break-word;
+  font-family: "MS Gothic", monospace;
+  font-size: 14px;
+  color: black;
+  font-weight: bold;
+  padding: 2px 4px;
+  background: yellow;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  cursor: pointer;
+  image-rendering: pixelated;
+  text-decoration: none;
+}
+
+.fmt-parens { font-style: italic; color: #555; }
+
+/* ── hyperlink ── */
+a.anchor-link {
+  font-family: "MS Gothic", monospace;
+  font-size: 14px;
+  color: #f0f0f0;
+  font-weight: bold;
+  padding: 2px 4px;
+  background: red;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  cursor: pointer;
+  image-rendering: pixelated;
+  text-decoration: none;
+}
+
+/* ── spawned entry block ── */
+.spawn-block {
+  margin-top: 6px;
+  padding-left: 14px;
+  border-left: 3px solid #bbb;
+}
+
+.spawn-clone {
+  opacity: 0.92;
+}
+
+/* ── highlight flash ── */
+@keyframes flashFade {
+  0%   { background-color: #ffe800; }
+  60%  { background-color: #ffe800; }
+  100% { background-color: transparent; }
+}
+.jump-highlight {
+  animation: flashFade 1.8s ease forwards;
+  border-radius: 3px;
+}
+
+/* ── cross-page pending flash (for anchors that loaded a new part) ── */
+@keyframes flashFadeDelay {
+  0%   { background-color: transparent; }
+  5%   { background-color: #ffe800; }
+  70%  { background-color: #ffe800; }
+  100% { background-color: transparent; }
+}
+.jump-highlight-delayed {
+  animation: flashFadeDelay 2.2s ease forwards;
+  border-radius: 3px;
+}
+
+/* ── back button ── */
+#back-btn {
+  display: none;
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  background: #222;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  border-radius: 3px;
+  cursor: pointer;
+  z-index: 9999;
+  letter-spacing: 0.03em;
+  box-shadow: 2px 2px 0 #555;
+}
+#back-btn:hover { background: #444; }
+
+/* ── Audio Button ── */
+.audio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  vertical-align: middle;
+  margin-left: 2px;
+  flex-shrink: 0;
+  padding: 2px;
+  color: #333;
+  transition: color 0.1s, transform 0.1s;
+  image-rendering: auto;
+}
+.audio-btn:hover {
+  color: #000;
+  transform: scale(1.15);
+}
+.audio-btn:active {
+  transform: scale(0.95);
+}
+.audio-btn.playing {
+  color: #111;
+}
+.audio-btn svg {
+  width: 27px;
+  height: 27px;
+  display: block;
+}
+
+/* ── Pixel divider ── */
+.pixel-divider {
+  width: 100%;
+  height: 6px;
+  background: repeating-linear-gradient(
+    45deg,
+    #222 0px 4px,
+    #f0f0f0 4px 8px
+  );
+  image-rendering: pixelated;
+  margin: 12px 0;
+  border: 2px solid #000;
+}
+</style>
+</head>
+<body>
+
+<!-- ── top bar: search + chapter filter side by side ── -->
+<div id="top-bar">
+  <div id="search-wrap">
+    <input id="search-input" type="text" placeholder="Search by ID…" autocomplete="off" spellcheck="false">
+    <span id="search-icon">⌕</span>
+    <div id="search-results"></div>
+  </div>
+
+  <div id="filter-bar">
+    <span class="filter-label">Chapter</span>
+    <div id="filter-btns">
+      <button class="chap-btn active" data-part="words.html">Frequently Used Words And Phrases</button>
+     
+    </div>
+  </div>
+</div>
+
+<div id="loader">Loading…</div>
+<div id="charts"></div>
+
+<button id="back-btn">↩ Back</button>
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentPart     = null;
+let originRef       = null;
+let pendingScrollId = null;
+const partCache     = {};     // filename → raw innerHTML of #charts
+
+const container = document.getElementById("charts");
+const loader    = document.getElementById("loader");
+const backBtn   = document.getElementById("back-btn");
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function span(cls) { const s = document.createElement("span"); s.className = cls; return s; }
+
+function flash(el) {
+  if (!el) return;
+  el.classList.remove("jump-highlight");
+  void el.offsetWidth;
+  el.classList.add("jump-highlight");
+  setTimeout(() => el && el.classList.remove("jump-highlight"), 2200);
+}
+
+function scrollAndFlash(id, delayed) {
+  const el = document.getElementById("chart-" + id);
+  if (!el) return false;
+  el.scrollIntoView({ block: "center" });
+  el.classList.remove("jump-highlight", "jump-highlight-delayed");
+  void el.offsetWidth;
+  el.classList.add(delayed ? "jump-highlight-delayed" : "jump-highlight");
+  setTimeout(() => el.classList.remove("jump-highlight", "jump-highlight-delayed"),
+             delayed ? 2500 : 2200);
+  return true;
+}
+
+// ─────────────────────────────────────────────
+// SPAWN REFS
+// ─────────────────────────────────────────────
+let _pendingSpawns  = [];
+let _currentSpawnIds = null;
+
+// ─────────────────────────────────────────────
+// INLINE PARSER
+// ─────────────────────────────────────────────
+function parseInline(text) {
+  const frag = document.createDocumentFragment();
+  const re = /a\{([^}]+)\}|b\{([^}]*)\}|i\{([^}]*)\}|u\{([^}]*)\}|h\{([^}]*)\}|m\{([^}]*)\}|p\{([^}]*)\}|d\{[^}]*\}|\(#([^=)]+)(?:=([^)]+))?\)|\*([^*]+)\*/g;
+
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+    if      (m[1] !== undefined) {
+      // a{url} — pixel speaker audio button
+      const audioUrl = m[1].trim();
+      const btn = document.createElement("button");
+      btn.className = "audio-btn";
+      btn.title = "Play audio";
+      btn.setAttribute("aria-label", "Play audio");
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svgEl = document.createElementNS(svgNS, "svg");
+      svgEl.setAttribute("width", "18"); svgEl.setAttribute("height", "18");
+      svgEl.setAttribute("viewBox", "0 0 24 24"); svgEl.setAttribute("fill", "none");
+      svgEl.setAttribute("stroke", "currentColor");
+      svgEl.setAttribute("stroke-width", "2.5");
+      svgEl.setAttribute("stroke-linecap", "round");
+      svgEl.setAttribute("stroke-linejoin", "round");
+      svgEl.innerHTML = `
+        <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" fill="none"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" fill="none"/>
+      `;
+      btn.appendChild(svgEl);
+      let audio = null;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!audio) audio = new Audio(audioUrl);
+        if (!audio.paused) {
+          audio.pause();
+          audio.currentTime = 0;
+          btn.classList.remove("playing");
+          btn.style.color = "";
+        } else {
+          document.querySelectorAll(".audio-btn.playing").forEach(b => {
+            b.classList.remove("playing");
+            b.style.color = "";
+            b._audioRef && b._audioRef.pause();
+          });
+          btn._audioRef = audio;
+          btn.classList.add("playing");
+          btn.style.color = "#ffe800";
+          audio.play().catch(() => {});
+          audio.onended = () => { btn.classList.remove("playing"); btn.style.color = ""; };
+        }
+      });
+      frag.appendChild(btn);
+    }
+    else if (m[2] !== undefined) { const s = span("fmt-bold");      s.appendChild(parseInline(m[2])); frag.appendChild(s); }
+    else if (m[3] !== undefined) { const s = span("fmt-italic");    s.appendChild(parseInline(m[3])); frag.appendChild(s); }
+    else if (m[4] !== undefined) { const s = span("fmt-underline"); s.appendChild(parseInline(m[4])); frag.appendChild(s); }
+    else if (m[5] !== undefined) { const s = span("fmt-highlight"); s.appendChild(parseInline(m[5])); frag.appendChild(s); }
+    else if (m[6] !== undefined) { const s = span("fmt-mark");      s.appendChild(parseInline(m[6])); frag.appendChild(s); }
+    else if (m[7] !== undefined) {
+      frag.appendChild(document.createTextNode("["));
+      const s = span("fmt-parens"); s.appendChild(parseInline(m[7])); frag.appendChild(s);
+      frag.appendChild(document.createTextNode("]"));
+    } else if (m[8] !== undefined) {
+      const a = document.createElement("a");
+      a.className      = "anchor-link";
+      a.dataset.target = m[8].trim();
+      a.textContent    = m[9] !== undefined ? m[9].trim() : m[8].trim();
+      a.href           = "#";
+      a.addEventListener("click", handleAnchorClick);
+      frag.appendChild(a);
+    } else if (m[10] !== undefined) {
+      const spawnId = m[10].trim();
+      if (_currentSpawnIds) _currentSpawnIds.push(spawnId);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+  return frag;
+}
+
+// ─────────────────────────────────────────────
+// EXPLAIN BUILDER
+// ─────────────────────────────────────────────
+function buildExplain(raw) {
+  const div = document.createElement("div");
+  div.className = "explain";
+  raw.split(/\n/).forEach(line => {
+    line = line.trim(); if (!line) return;
+    const p   = document.createElement("p");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width","16"); svg.setAttribute("height","16");
+    svg.setAttribute("viewBox","0 0 16 16"); svg.setAttribute("fill","none");
+    svg.innerHTML = `
+      <line x1="3" y1="0" x2="3" y2="9"  stroke="currentColor" stroke-width="1.4"/>
+      <line x1="3" y1="9" x2="13" y2="9" stroke="currentColor" stroke-width="1.4"/>
+      <polyline points="9,5 13,9 9,13" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const tw = document.createElement("span");
+    tw.className = "explain-text";
+    tw.appendChild(parseInline(line));
+    p.appendChild(svg); p.appendChild(tw); div.appendChild(p);
+  });
+  return div;
+}
+
+// ─────────────────────────────────────────────
+// CHECK if raw entry text contains a d{...} token
+// ─────────────────────────────────────────────
+function hasD(rawText) {
+  return /\bd\{[^}]*\}/.test(rawText);
+}
+
+// ─────────────────────────────────────────────
+// BUILD CHARTS (works on any container div)
+// ─────────────────────────────────────────────
+async function buildCharts(root) {
+  _pendingSpawns = [];
+
+  Array.from(root.childNodes).forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const txt = node.textContent.trim();
+      if (!txt) { node.remove(); return; }
+      const div = document.createElement("div");
+      div.style.cssText = "padding:3px 0;font-size:14px;line-height:1.5;";
+      _currentSpawnIds = [];
+      div.appendChild(parseInline(txt));
+      const spawnIds = _currentSpawnIds; _currentSpawnIds = null;
+      root.insertBefore(div, node); node.remove();
+      if (spawnIds.length) _pendingSpawns.push({ afterEl: div, ids: spawnIds });
+      return;
+    }
+    if (node.tagName !== "P") return;
+    const raw = node.textContent.trim();
+    if (!raw) { node.remove(); return; }
+
+    const stripped = raw.replace(/^\d+\s*/, "").trim();
+    let explainRaw = "", tableText = stripped;
+    const tMatch = stripped.match(/\bt\[(.+)\]\s*$/s);
+    if (tMatch) { explainRaw = tMatch[1].trim(); tableText = stripped.slice(0, tMatch.index).trim(); }
+
+    _currentSpawnIds = [];
+
+    const chartId  = tableText.split("/")[0].split("=")[0].trim().replace(/\*/g, "");
+    const chartBox = document.createElement("div");
+    chartBox.className = "chart";
+    chartBox.id        = "chart-" + chartId;
+
+    const wrap = document.createElement("div"); wrap.className = "table-wrap";
+    const grid = document.createElement("div"); grid.className = "grid";
+
+    const rows     = tableText.split("/").map(r => r.trim()).filter(Boolean);
+    const colCount = Math.max(...rows.map(r => r.split("=").length));
+    grid.style.gridTemplateColumns = `repeat(${colCount}, auto)`;
+
+    rows.forEach(row => {
+      const cols = row.split("=").map(c => c.trim());
+      cols.forEach(col => {
+        const cell = document.createElement("div");
+        cell.className = "cell"; cell.appendChild(parseInline(col)); grid.appendChild(cell);
+      });
+      for (let i = cols.length; i < colCount; i++) {
+        const cell = document.createElement("div"); cell.className = "cell"; grid.appendChild(cell);
+      }
+    });
+
+    if (explainRaw) {
+      explainRaw.split(/\n/).forEach(line => {
+        line = line.trim(); if (!line) return;
+        const tmp = document.createDocumentFragment();
+        tmp.appendChild(parseInline(line));
+      });
+    }
+
+    const spawnIds = _currentSpawnIds; _currentSpawnIds = null;
+
+    wrap.appendChild(grid); chartBox.appendChild(wrap);
+    if (explainRaw) chartBox.appendChild(buildExplain(explainRaw));
+    root.insertBefore(chartBox, node); node.remove();
+
+    // ── pixel divider: only when raw entry text contains d{...} ──
+    if (hasD(raw)) {
+      const divider = document.createElement("div");
+      divider.className = "pixel-divider";
+      chartBox.after(divider);
+    }
+
+    if (spawnIds.length) _pendingSpawns.push({ afterEl: chartBox, ids: spawnIds });
+  });
+
+  resolveSpawns(root);
+}
+
+// ─────────────────────────────────────────────
+// BUILD CHARTS DETACHED
+// ─────────────────────────────────────────────
+function buildChartsDetached(root) {
+  const savedSpawns = _pendingSpawns;
+  const savedIds    = _currentSpawnIds;
+  _pendingSpawns    = [];
+
+  Array.from(root.childNodes).forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) { node.remove(); return; }
+    if (node.tagName !== "P") return;
+    const raw = node.textContent.trim(); if (!raw) { node.remove(); return; }
+
+    const stripped  = raw.replace(/^\d+\s*/, "").trim();
+    let explainRaw  = "", tableText = stripped;
+    const tMatch    = stripped.match(/\bt\[(.+)\]\s*$/s);
+    if (tMatch) { explainRaw = tMatch[1].trim(); tableText = stripped.slice(0, tMatch.index).trim(); }
+
+    _currentSpawnIds = [];
+
+    const chartId  = tableText.split("/")[0].split("=")[0].trim().replace(/\*/g, "");
+    const chartBox = document.createElement("div");
+    chartBox.className = "chart";
+    chartBox.id        = "chart-" + chartId;
+
+    const wrap = document.createElement("div"); wrap.className = "table-wrap";
+    const grid = document.createElement("div"); grid.className = "grid";
+
+    const rows     = tableText.split("/").map(r => r.trim()).filter(Boolean);
+    const colCount = Math.max(...rows.map(r => r.split("=").length));
+    grid.style.gridTemplateColumns = `repeat(${colCount}, auto)`;
+
+    rows.forEach(row => {
+      const cols = row.split("=").map(c => c.trim());
+      cols.forEach(col => {
+        const cell = document.createElement("div");
+        cell.className = "cell"; cell.appendChild(parseInline(col)); grid.appendChild(cell);
+      });
+      for (let i = cols.length; i < colCount; i++) {
+        const cell = document.createElement("div"); cell.className = "cell"; grid.appendChild(cell);
+      }
+    });
+
+    wrap.appendChild(grid); chartBox.appendChild(wrap);
+    if (explainRaw) chartBox.appendChild(buildExplain(explainRaw));
+    root.insertBefore(chartBox, node); node.remove();
+  });
+
+  _currentSpawnIds = savedIds;
+  _pendingSpawns   = savedSpawns;
+}
+
+// ─────────────────────────────────────────────
+// RESOLVE SPAWNS
+// ─────────────────────────────────────────────
+async function resolveSpawns(root) {
+  const allParts = Array.from(document.querySelectorAll(".chap-btn")).map(b => b.dataset.part);
+
+  for (const file of allParts) {
+    if (file !== currentPart && partCache[file] === undefined) {
+      try { await fetchAndCache(file); } catch (_) {}
+    }
+  }
+
+  const globalLookup = {};
+  for (const file of allParts) {
+    if (file === currentPart || partCache[file] === undefined) continue;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = partCache[file];
+    buildChartsDetached(tmp);
+    tmp.querySelectorAll(".chart[id]").forEach(el => {
+      const id = el.id.replace(/^chart-/, "");
+      if (!globalLookup[id]) globalLookup[id] = el;
+    });
+  }
+
+  for (const { afterEl, ids } of _pendingSpawns) {
+    const seen = new Set();
+    const unique = ids.filter(id => { if (seen.has(id)) return false; seen.add(id); return true; });
+
+    let insertAfter = afterEl;
+    for (const id of unique) {
+      const source = root.querySelector("#chart-" + CSS.escape(id))
+                  || globalLookup[id] || null;
+      if (!source) continue;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "spawn-block";
+      const _parentId = afterEl.id
+        ? afterEl.id.replace(/^chart-/, "")
+        : (afterEl.dataset && afterEl.dataset.spawnParent) || "root";
+      wrapper.id = "chart-spawn-" + _parentId + "-" + id;
+      wrapper.dataset.spawnParent = _parentId;
+      const clone = source.cloneNode(true);
+      clone.removeAttribute("id");
+      clone.classList.add("spawn-clone");
+      clone.querySelectorAll("a.anchor-link").forEach(a => {
+        a.addEventListener("click", handleAnchorClick);
+      });
+      wrapper.appendChild(clone);
+
+      insertAfter.insertAdjacentElement("afterend", wrapper);
+      insertAfter = wrapper;
+    }
+  }
+  _pendingSpawns = [];
+}
+
+// ─────────────────────────────────────────────
+// FETCH & CACHE
+// ─────────────────────────────────────────────
+async function fetchAndCache(file) {
+  if (partCache[file] !== undefined) return partCache[file];
+  const res  = await fetch(file);
+  const text = await res.text();
+  const tmp  = document.createElement("div");
+  tmp.innerHTML = text;
+  const src = tmp.querySelector("#charts");
+  partCache[file] = src ? src.innerHTML : text;
+  return partCache[file];
+}
+
+// ─────────────────────────────────────────────
+// CHECK whether a chart-id exists in a cached part
+// ─────────────────────────────────────────────
+function cachedPartHasId(file, targetId) {
+  if (partCache[file] === undefined) return false;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = partCache[file];
+  buildChartsDetached(tmp);
+  return !!tmp.querySelector("#chart-" + CSS.escape(targetId));
+}
+
+// ─────────────────────────────────────────────
+// EXTRACT ALL IDS from a cached part (for search)
+// ─────────────────────────────────────────────
+function extractIdsFromPart(file) {
+  if (partCache[file] === undefined) return [];
+  const tmp = document.createElement("div");
+  tmp.innerHTML = partCache[file];
+  buildChartsDetached(tmp);
+  const ids = [];
+  tmp.querySelectorAll(".chart[id]").forEach(el => {
+    const id = el.id.replace(/^chart-/, "");
+    if (id) ids.push(id);
+  });
+  return ids;
+}
+
+// ─────────────────────────────────────────────
+// LOAD + RENDER a part
+// ─────────────────────────────────────────────
+async function loadPart(file) {
+  const alreadyShowing = currentPart === file;
+
+  if (!alreadyShowing) {
+    currentPart = file;
+    loader.style.display  = "block";
+    container.innerHTML   = "";
+    if (!pendingScrollId) {
+      backBtn.style.display = "none";
+      originRef = null;
+    }
+
+    try {
+      await fetchAndCache(file);
+    } catch (e) {
+      loader.style.display = "none";
+      container.innerHTML  = `<p style="color:red;padding:10px">Could not load ${file}. Make sure all files are in the same folder.</p>`;
+      return;
+    }
+
+    container.innerHTML  = partCache[file];
+    loader.style.display = "none";
+    await buildCharts(container);
+  }
+
+  if (pendingScrollId) {
+    const id = pendingScrollId;
+    pendingScrollId = null;
+    requestAnimationFrame(() => scrollAndFlash(id, true));
+  }
+}
+
+// ─────────────────────────────────────────────
+// ANCHOR CLICK — same-page or cross-page
+// ─────────────────────────────────────────────
+function handleAnchorClick(e) {
+  e.preventDefault();
+  const targetId = this.dataset.target;
+  const srcChart = this.closest(".chart");
+  let fromId = null;
+  if (srcChart) {
+    if (srcChart.id) {
+      fromId = srcChart.id.replace(/^chart-/, "");
+    } else {
+      const spawnBlock = srcChart.closest(".spawn-block");
+      if (spawnBlock && spawnBlock.id) fromId = spawnBlock.id.replace(/^chart-/, "");
+    }
+  }
+
+  if (document.getElementById("chart-" + targetId)) {
+    originRef = { part: currentPart, id: fromId };
+    backBtn.style.display = "block";
+    scrollAndFlash(targetId, false);
+    return;
+  }
+
+  const allParts   = Array.from(document.querySelectorAll(".chap-btn")).map(b => b.dataset.part);
+  const otherParts = allParts.filter(p => p !== currentPart);
+
+  for (const p of otherParts) {
+    if (partCache[p] !== undefined && cachedPartHasId(p, targetId)) {
+      switchToPartWithAnchor(p, targetId, fromId);
+      return;
+    }
+  }
+
+  (async () => {
+    for (const p of otherParts) {
+      if (partCache[p] !== undefined) continue;
+      try {
+        await fetchAndCache(p);
+        if (cachedPartHasId(p, targetId)) {
+          switchToPartWithAnchor(p, targetId, fromId);
+          return;
+        }
+      } catch (_) {}
+    }
+    scrollAndFlash(targetId, false);
+  })();
+}
+
+function switchToPartWithAnchor(partFile, targetId, fromId) {
+  originRef = { part: currentPart, id: fromId };
+  pendingScrollId = targetId;
+  document.querySelectorAll(".chap-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.part === partFile)
+  );
+  backBtn.style.display = "block";
+  loadPart(partFile);
+}
+
+// ─────────────────────────────────────────────
+// BACK BUTTON
+// ─────────────────────────────────────────────
+backBtn.addEventListener("click", () => {
+  if (!originRef) return;
+  const ref = originRef;
+  originRef = null;
+  backBtn.style.display = "none";
+
+  const doScroll = () => {
+    if (ref.id) {
+      scrollAndFlash(ref.id, false);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  if (ref.part && ref.part !== currentPart) {
+    currentPart = null;
+    document.querySelectorAll(".chap-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.part === ref.part)
+    );
+    loadPart(ref.part).then(() => requestAnimationFrame(doScroll));
+  } else {
+    doScroll();
+  }
+});
+
+// ─────────────────────────────────────────────
+// FILTER BUTTONS
+// ─────────────────────────────────────────────
+document.querySelectorAll(".chap-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".chap-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentPart = null;
+    loadPart(btn.dataset.part);
+  });
+});
+
+// ─────────────────────────────────────────────
+// SEARCH — cross-page ID search
+// ─────────────────────────────────────────────
+const searchInput   = document.getElementById("search-input");
+const searchResults = document.getElementById("search-results");
+
+// Pretty label for a part filename
+function partLabel(file) {
+  return file.replace(/^.*\//, "").replace(/\.html$/, "");
+}
+
+// Get all parts list
+function allPartFiles() {
+  return Array.from(document.querySelectorAll(".chap-btn")).map(b => b.dataset.part);
+}
+
+// Ensure all parts are cached (background prefetch)
+async function ensureAllCached() {
+  for (const file of allPartFiles()) {
+    if (partCache[file] === undefined) {
+      try { await fetchAndCache(file); } catch (_) {}
+    }
+  }
+}
+
+// Run search across all cached parts
+function runSearch(query) {
+  query = query.trim();
+  if (!query) { hideResults(); return; }
+
+  const q = query.toLowerCase();
+  const matches = []; // { id, file }
+
+  for (const file of allPartFiles()) {
+    const ids = extractIdsFromPart(file);
+    for (const id of ids) {
+      if (id.toLowerCase().includes(q)) {
+        matches.push({ id, file });
+      }
+    }
+  }
+
+  renderResults(matches, query);
+}
+
+function renderResults(matches, query) {
+  searchResults.innerHTML = "";
+  if (matches.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "sr-empty";
+    empty.textContent = `No results for "${query}"`;
+    searchResults.appendChild(empty);
+  } else {
+    matches.forEach(({ id, file }) => {
+      const item = document.createElement("div");
+      item.className = "sr-item";
+
+      const idSpan = document.createElement("span");
+      idSpan.className = "sr-id";
+      idSpan.textContent = id;
+
+      const pageSpan = document.createElement("span");
+      pageSpan.className = "sr-page";
+      pageSpan.textContent = partLabel(file);
+
+      item.appendChild(idSpan);
+      item.appendChild(pageSpan);
+
+      item.addEventListener("click", () => {
+        hideResults();
+        searchInput.value = "";
+        // navigate
+        if (file === currentPart) {
+          scrollAndFlash(id, false);
+        } else {
+          originRef = { part: currentPart, id: null };
+          pendingScrollId = id;
+          document.querySelectorAll(".chap-btn").forEach(b =>
+            b.classList.toggle("active", b.dataset.part === file)
+          );
+          backBtn.style.display = "block";
+          loadPart(file);
+        }
+      });
+
+      searchResults.appendChild(item);
+    });
+  }
+  searchResults.style.display = "block";
+}
+
+function hideResults() {
+  searchResults.style.display = "none";
+  searchResults.innerHTML = "";
+}
+
+let searchDebounce = null;
+searchInput.addEventListener("input", () => {
+  clearTimeout(searchDebounce);
+  const val = searchInput.value.trim();
+  if (!val) { hideResults(); return; }
+  searchDebounce = setTimeout(() => runSearch(val), 180);
+});
+
+searchInput.addEventListener("focus", () => {
+  if (searchInput.value.trim()) runSearch(searchInput.value);
+});
+
+// Close results on outside click
+document.addEventListener("click", e => {
+  if (!document.getElementById("search-wrap").contains(e.target)) {
+    hideResults();
+  }
+});
+
+// Keyboard nav inside results
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "Escape") { hideResults(); searchInput.blur(); return; }
+  const items = Array.from(searchResults.querySelectorAll(".sr-item"));
+  if (!items.length) return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    items[0].focus();
+  }
+});
+searchResults.addEventListener("keydown", e => {
+  const items = Array.from(searchResults.querySelectorAll(".sr-item"));
+  const idx = items.indexOf(document.activeElement);
+  if (e.key === "ArrowDown") { e.preventDefault(); items[Math.min(idx+1, items.length-1)]?.focus(); }
+  if (e.key === "ArrowUp")   { e.preventDefault(); if (idx <= 0) searchInput.focus(); else items[idx-1]?.focus(); }
+  if (e.key === "Enter" && idx >= 0) { e.preventDefault(); items[idx].click(); }
+  if (e.key === "Escape") { hideResults(); searchInput.focus(); }
+});
+// Make items focusable for keyboard nav
+searchResults.addEventListener("DOMSubtreeModified", () => {
+  searchResults.querySelectorAll(".sr-item").forEach(el => {
+    if (!el.getAttribute("tabindex")) el.setAttribute("tabindex", "0");
+  });
+});
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+const defaultBtn = document.querySelector(".chap-btn.active") || document.querySelector(".chap-btn");
+loadPart(defaultBtn.dataset.part).then(() => {
+  // silently pre-fetch remaining parts so search is ready
+  ensureAllCached();
+});
+</script>
+</body>
+</html>
